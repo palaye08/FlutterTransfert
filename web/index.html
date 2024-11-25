@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flutter Web avec Firebase</title>
+
+  <!-- Ajout des SDK Firebase -->
+  <script type="module">
+    // Importation des fonctionnalités Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.17.0/firebase-analytics.js";
+    import { getDatabase } from "https://www.gstatic.com/firebasejs/9.17.0/firebase-database.js";
+
+    // Configuration Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyBBTdc7Ip5a5rWLTA0_W0FrQCsmcxVWiy0",
+      authDomain: "fluttergetx-4d8ae.firebaseapp.com",
+      databaseURL: "https://fluttergetx-4d8ae-default-rtdb.firebaseio.com",
+      projectId: "fluttergetx-4d8ae",
+      storageBucket: "fluttergetx-4d8ae.firebasestorage.app",
+      messagingSenderId: "759199034573",
+      appId: "1:759199034573:web:ad6f06bad986e6bd950d84",
+      measurementId: "G-6G78KYVTD6"
+    };
+
+    // Initialisation Firebase
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+
+    // Exemple : Initialiser la base de données Firebase
+    const database = getDatabase(app);
+    console.log("Firebase est prêt !");
+  </script>
+</head>
+<body>
+  <script src="main.dart.js"></script>
+</body>
+</html>
