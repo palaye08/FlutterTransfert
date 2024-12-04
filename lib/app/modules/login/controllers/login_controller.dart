@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:getxcli/app/routes/app_pages.dart';
@@ -68,35 +66,7 @@ class LoginController extends GetxController {
       }
     }
   }
- // Modification du login_controller.dart pour la redirection
-/* Future loginWithGoogle() async {
-  isLoading.value = true;
-  try {
-    await _firebaseService.loginWithGoogle();
-    
-    // Vérifier le type d'utilisateur
-    final User? currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser != null) {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .get();
-      
-      if (userDoc.exists) {
-        final userData = userDoc.data() as Map<String, dynamic>;
-        if (userData['type'] != 'distributeur') {
-          Get.offNamed(Routes.HOME);
-        } else {
-          Get.offNamed(Routes.DISTRIBUTEUR);
-        }
-      }
-    }
-  } catch (e) {
-    Get.snackbar('Erreur', 'Échec de la connexion Google: ${e.toString()}');
-  } finally {
-    isLoading.value = false;
-  }
-} */
+
 
   Future<void> loginWithGoogle() async {
     isLoading.value = true;

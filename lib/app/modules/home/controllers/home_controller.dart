@@ -4,7 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/services/firebase_service.dart';
-import 'package:flutter/material.dart';
+
+final isLoadingTransactions = true.obs;
 
 class HomeController extends GetxController {
   final FirebaseService _firebaseService = FirebaseService();
@@ -18,10 +19,12 @@ class HomeController extends GetxController {
   final _usersInfo = <String, Rx<UserModel>>{}.obs;
 
   final isDistributeur = false.obs;
+  final isLoadingTransactions = true.obs;
 
   // Streams pour les mises à jour en temps réel
   StreamSubscription<DocumentSnapshot>? _userSubscription;
   StreamSubscription<QuerySnapshot>? _transactionsSubscription;
+
 
   @override
   void onInit() {
@@ -134,24 +137,6 @@ class HomeController extends GetxController {
     }
   }
 
- void _setupTransactionsListener(String userId) {
-  _transactionsSubscription = _firestore
-      .collection('transactions')
-      .where(Filter.or(
-        Filter('senderId', isEqualTo: userId),
-        Filter('receiverId', isEqualTo: userId),
-      ))
-      .orderBy('timestamp', descending: true)
-      .snapshots()
-      .listen((querySnapshot) {
-        transactions.value = querySnapshot.docs
-            .map((doc) => Transaction.fromFirestore(doc))
-            .toList()
-          ..sort((a, b) => b.dateTime.compareTo(a.dateTime)); // Tri supplémentaire côté client
-        
-        _loadRelatedUsersInfo(userId);
-  });
-}
 
 
   void _loadRelatedUsersInfo(String currentUserId) {
@@ -188,11 +173,35 @@ class HomeController extends GetxController {
       print('Erreur lors du chargement des informations utilisateur: $e');
     }
   }
-
-  Future<void> refreshData() async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser != null) {
-      try {
+void _setupTransactionsListener(String userId) {
+  isLoadingTransactions.value = true;
+  _transactionsSubscription = _firestore
+      .collection('transactions')
+      .where(Filter.or(
+        Filter('senderId', isEqualTo: userId),
+        Filter('receiverId', isEqualTo: userId),
+      ))
+      .orderBy('timestamp', descending: true)
+      .snapshots()
+      .listen((querySnapshot) {
+        transactions.value = querySnapshot.docs
+            .map((doc) => Transaction.fromFirestore(doc))
+            .toList()
+          ..sort((a, b) => b.dateTime.compareTo(a.dateTime)); 
+        
+        _loadRelatedUsersInfo(userId);
+        isLoadingTransactions.value = false;
+  }, onError: (error) {
+    isLoadingTransactions.value = false;
+    print('Erreur lors du chargement des transactions: $error');
+  });
+}
+// Also update your refreshData method
+Future<void> refreshData() async {
+  final currentUser = FirebaseAuth.instance.currentUser;
+  if (currentUser != null) {
+    try {
+      isLoadingTransactions.value = true;
         // Rafraîchir les données utilisateur
         final userDoc = await _firestore
             .collection('users')

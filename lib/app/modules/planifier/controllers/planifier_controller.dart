@@ -34,6 +34,9 @@ class PlanifierController extends GetxController {
   final currentUserId = ''.obs;
   final currentUserPhone = ''.obs;
 
+  // Local server configuration
+  static const String _serverBaseUrl = 'http://192.168.1.124:8000/api';
+
   @override
   void onInit() {
     super.onInit();
@@ -91,11 +94,11 @@ class PlanifierController extends GetxController {
         'senderId': currentUserId.value,
         'frequency': frequency.value,
         'frequencyValue': frequencyValue.value,
-        'startDate': startDate.value.toIso8601String().split('T')[0] // Format date as YYYY-MM-DD
+        'startDate': startDate.value.toIso8601String().split('T')[0]
       };
 
       final response = await http.post(
-        Uri.parse('http://192.168.39.212:8000/api/planifier'),
+        Uri.parse('$_serverBaseUrl/planifier'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -116,6 +119,15 @@ class PlanifierController extends GetxController {
 
         // Show detailed success dialog
         _showTransactionDetailsDialog(responseData);
+          // Show success snackbar
+        Get.snackbar(
+          'Succès', 
+          'Transfert planifié effectué avec succès',
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 5),
+        );
+
 
         Get.back(); // Optionally close the current screen
       } else {

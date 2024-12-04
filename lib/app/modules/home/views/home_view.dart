@@ -407,6 +407,15 @@ Widget _buildTransactionsList() {
           SizedBox(height: 10),
           Expanded(
             child: Obx(() {
+              // Add a loading state check
+              if (controller.isLoadingTransactions.value) {
+                return Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blue[800]!),
+                  ),
+                );
+              }
+
               if (controller.transactions.isEmpty) {
                 return Center(
                   child: Column(
