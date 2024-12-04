@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:intl/intl.dart';
 
 class PlanifierController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -17,6 +18,17 @@ class PlanifierController extends GetxController {
   final delayMinutes = 1.obs;
   final isLoading = false.obs;
   final error = ''.obs;
+  
+  // Frequency-related observables
+  final frequency = 'minutes'.obs;
+  final frequencyValue = 1.obs;
+  final startDate = DateTime.now().obs;
+
+  // Transaction details after successful planning
+  final transactionDetails = Rx<Map<String, dynamic>?>(null);
+
+  // Available frequency options
+  final frequencyOptions = ['minutes', 'daily', 'weekly', 'monthly'];
   
   // Current user info
   final currentUserId = ''.obs;
@@ -58,97 +70,137 @@ class PlanifierController extends GetxController {
       rethrow;
     }
   }
-Future<void> planifierTransaction() async {
-  try {
-    isLoading.value = true;
-    error.value = '';
-    
-    // Validation des entrées
-    if (montant.isEmpty || phoneNumber.isEmpty) {
-      throw Exception('Veuillez remplir tous les champs');
-    }
 
-    // Log pour le débogage
-    print('Début de la transaction planifiée');
-    print('Montant: $montant');
-    print('Téléphone: $phoneNumber');
+  Future<void> planifierTransaction() async {
+    try {
+      isLoading.value = true;
+      error.value = '';
+      transactionDetails.value = null;
+      
+      // Validation des entrées
+      if (montant.isEmpty || phoneNumber.isEmpty) {
+        throw Exception('Veuillez remplir tous les champs');
+      }
 
-    final receiverId = await _findUserIdByPhoneNumber(phoneNumber.value);
-    print('ReceiverID trouvé: $receiverId');
+      final receiverId = await _findUserIdByPhoneNumber(phoneNumber.value);
 
-    final body = {
-      'montant': int.parse(montant.value),
-      'receiverId': receiverId,
-      'receiverPhone': phoneNumber.value,
-      'senderId': currentUserId.value,
-      'delay_minutes': delayMinutes.value
-    };
+      final body = {
+        'montant': int.parse(montant.value),
+        'receiverId': receiverId,
+        'receiverPhone': phoneNumber.value,
+        'senderId': currentUserId.value,
+        'frequency': frequency.value,
+        'frequencyValue': frequencyValue.value,
+        'startDate': startDate.value.toIso8601String().split('T')[0] // Format date as YYYY-MM-DD
+      };
 
-    print('Envoi de la requête au serveur...');
-    print('Corps de la requête: ${json.encode(body)}');
-
-    // Tentative de connexion avec timeout
-    final response = await http.post(
-      Uri.parse('http://192.168.39.212:8000/api/planifier'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        // Ajoutez d'autres headers si nécessaire pour votre API
-      },
-      body: json.encode(body),
-    ).timeout(
-      const Duration(seconds: 10),
-      onTimeout: () {
-        throw TimeoutException('La connexion au serveur a expiré');
-      },
-    );
-
-    print('Réponse reçue du serveur');
-    print('Status code: ${response.statusCode}');
-    print('Corps de la réponse: ${response.body}');
-
-    if (response.statusCode == 201) {
-      final responseData = json.decode(response.body);
-      Get.snackbar(
-        'Succès',
-        'Transaction planifiée avec succès pour ${responseData['execution_time']}',
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 3),
+      final response = await http.post(
+        Uri.parse('http://192.168.39.212:8000/api/planifier'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: json.encode(body),
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException('La connexion au serveur a expiré');
+        },
       );
-      Get.back();
-    } else if (response.statusCode == 404) {
-      throw Exception('API endpoint non trouvé');
-    } else if (response.statusCode == 500) {
-      throw Exception('Erreur serveur interne');
-    } else {
-      throw Exception('Erreur ${response.statusCode}: ${response.body}');
-    }
 
-  } on SocketException catch (e) {
-    print('Erreur de connexion socket: $e');
-    error.value = 'Impossible de se connecter au serveur. Vérifiez votre connexion et l\'état du serveur.';
-  } on TimeoutException catch (e) {
-    print('Timeout: $e');
-    error.value = 'La connexion au serveur a pris trop de temps.';
-  } on FormatException catch (e) {
-    print('Erreur de format: $e');
-    error.value = 'Erreur de format dans la réponse du serveur.';
-  } catch (e) {
-    print('Erreur générale: $e');
-    error.value = 'Une erreur est survenue: $e';
-  } finally {
-    isLoading.value = false;
-    
-    if (error.value.isNotEmpty) {
-      Get.snackbar(
-        'Erreur',
-        error.value,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 5),
-      );
+      if (response.statusCode == 201) {
+        final responseData = json.decode(response.body);
+        
+        // Store transaction details
+        transactionDetails.value = responseData['transaction_details'];
+
+        // Show detailed success dialog
+        _showTransactionDetailsDialog(responseData);
+
+        Get.back(); // Optionally close the current screen
+      } else {
+        throw Exception('Erreur ${response.statusCode}: ${response.body}');
+      }
+
+    } on SocketException catch (e) {
+      error.value = 'Impossible de se connecter au serveur. Vérifiez votre connexion et l\'état du serveur.';
+    } on TimeoutException catch (e) {
+      error.value = 'La connexion au serveur a pris trop de temps.';
+    } on FormatException catch (e) {
+      error.value = 'Erreur de format dans la réponse du serveur.';
+    } catch (e) {
+      error.value = 'Une erreur est survenue: $e';
+    } finally {
+      isLoading.value = false;
+      
+      if (error.value.isNotEmpty) {
+        Get.snackbar(
+          'Erreur',
+          error.value,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 5),
+        );
+      }
     }
   }
-}
+
+  void _showTransactionDetailsDialog(Map<String, dynamic> responseData) {
+    final details = responseData['transaction_details'];
+    final executionTime = responseData['execution_time'];
+
+    Get.dialog(
+      AlertDialog(
+        title: Text('Transaction Planifiée', style: TextStyle(color: Colors.blue[800])),
+        content: SingleChildScrollView(
+          child: ListBody(
+            children: [
+              _buildDetailRow('Montant', '${details['montant']} CFA'),
+              _buildDetailRow('Destinataire', details['receiverPhone']),
+              _buildDetailRow('Fréquence', 
+                '${details['frequency']} (tous les ${details['frequencyValue']})'),
+              _buildDetailRow('Première exécution', 
+                _formatDateTime(details['timestamp'])),
+              _buildDetailRow('Type', details['type']),
+              _buildDetailRow('Statut', details['status']),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: Text('OK', style: TextStyle(color: Colors.blue[800])),
+            onPressed: () => Get.back(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label, 
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          Text(value),
+        ],
+      ),
+    );
+  }
+
+  String _formatDateTime(String dateTimeString) {
+    try {
+      // Parse the input date string
+      final DateTime parsedDate = DateTime.parse(dateTimeString);
+      
+      // Format the date in a more readable format
+      return DateFormat('dd/MM/yyyy HH:mm').format(parsedDate);
+    } catch (e) {
+      return dateTimeString; // Return original string if parsing fails
+    }
+  }
 }

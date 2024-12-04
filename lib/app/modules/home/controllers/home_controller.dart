@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/services/firebase_service.dart';
+import 'package:flutter/material.dart';
 
 class HomeController extends GetxController {
   final FirebaseService _firebaseService = FirebaseService();
@@ -66,7 +67,7 @@ class HomeController extends GetxController {
     try {
       // Rechercher l'ID du destinataire par son numéro de téléphone
       final receiverId = await _findUserIdByPhoneNumber(phoneNumber);
- Get.find<HomeController>().refreshData();
+ 
 
       await _firebaseService.createTransaction(
         senderId: currentUser.uid,
@@ -79,6 +80,7 @@ class HomeController extends GetxController {
       print('Erreur lors du dépôt: $e');
       rethrow;
     }
+    Get.find<HomeController>().refreshData();
   }
 
   Future<void> effectuerRetrait({
@@ -93,7 +95,6 @@ class HomeController extends GetxController {
     try {
       // Rechercher l'ID du destinataire par son numéro de téléphone
       final receiverId = await _findUserIdByPhoneNumber(phoneNumber);
-    Get.find<HomeController>().refreshData();
       await _firebaseService.createTransaction(
         senderId: receiverId,
         montant: montant, // Montant négatif pour un retrait
@@ -105,6 +106,8 @@ class HomeController extends GetxController {
       print('Erreur lors du retrait: $e');
       rethrow;
     }
+    Get.find<HomeController>().refreshData();
+
   }
 
   void setupRealtimeUpdates() {
@@ -284,3 +287,4 @@ class Transaction {
     );
   }
 }
+
